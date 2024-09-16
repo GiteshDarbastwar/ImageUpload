@@ -1,8 +1,6 @@
 package com.gtasterix.ImageUpload.service;
 
-
 import com.gtasterix.ImageUpload.exception.FileSizeExceededException;
-
 import com.gtasterix.ImageUpload.exception.ImageNotFoundException;
 import com.gtasterix.ImageUpload.model.Image;
 import com.gtasterix.ImageUpload.repository.ImageRepository;
@@ -10,11 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,40 +18,28 @@ public class ImageStorageService {
     @Autowired
     private ImageRepository imageRepository;
 
-    private static final String IMAGE_STORAGE_PATH = "images/";
-
-    // Ensure the image storage directory exists
-    static {
-        File directory = new File(IMAGE_STORAGE_PATH);
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
-    }
-
     // Upload image with size limit
-    public Image uploadImageWithSizeLimit(MultipartFile file, String fileDownloadUri, long sizeLimit) throws IOException {
-        if (file.getSize() > sizeLimit) {
-            throw new FileSizeExceededException("File size exceeds the limit of " + sizeLimit / (1024 * 1024) + " MB");
+    public Image uploadImageWithSizeLimit(MultipartFile file, String url, long maxFileSize) throws IOException {
+        if (file.getSize() > maxFileSize) {
+            throw new FileSizeExceededException("File size exceeds the limit of 5MB");
         }
-        return saveImage(file, fileDownloadUri);
+
+        Image image = new Image();
+        image.setName(file.getOriginalFilename());
+        image.setUrl(url);
+        image.setImage(file.getBytes());  // Store image as binary data
+
+        return imageRepository.save(image);
     }
 
     // Upload image without size limit
-    public Image uploadImageWithoutSizeLimit(MultipartFile file, String fileDownloadUri) throws IOException {
-        return saveImage(file, fileDownloadUri);
-    }
+    public Image uploadImageWithoutSizeLimit(MultipartFile file, String url) throws IOException {
+        Image image = new Image();
+        image.setName(file.getOriginalFilename());
+        image.setUrl(url);
+        image.setImage(file.getBytes());  // Store image as binary data
 
-    // Save image to the local file system and database
-    private Image saveImage(MultipartFile file, String fileDownloadUri) throws IOException {
-        String filename = file.getOriginalFilename();
-        File localFile = new File(IMAGE_STORAGE_PATH + filename);
-
-        try (FileOutputStream fos = new FileOutputStream(localFile)) {
-            fos.write(file.getBytes());
-        }
-
-        Image imageEntity = new Image(filename, fileDownloadUri, localFile.getAbsolutePath());
-        return imageRepository.save(imageEntity);
+        return imageRepository.save(image);
     }
 
     // Get image by ID
@@ -65,41 +47,35 @@ public class ImageStorageService {
         return imageRepository.findById(id);
     }
 
+    public Optional<Image> getImageByName(String filename) {
+        return imageRepository.findByName(filename);  // Assuming `findByName` is implemented in repository
+    }
+
+
     // Get all images
     public List<Image> getAllImages() {
         return imageRepository.findAll();
     }
 
-    // Update image (replace image data)
+    // Update image by ID
     public Image updateImage(Long id, MultipartFile file) throws IOException {
         Optional<Image> imageOptional = imageRepository.findById(id);
-
-        if (!imageOptional.isPresent()) {
-            throw new ImageNotFoundException("Image with ID " + id + " not found");
+        if (imageOptional.isPresent()) {
+            Image image = imageOptional.get();
+            image.setName(file.getOriginalFilename());
+            image.setImage(file.getBytes());  // Update the image binary data
+            return imageRepository.save(image);
+        } else {
+            throw new ImageNotFoundException("Image not found with id " + id);
         }
-
-        Image image = imageOptional.get();
-        File localFile = new File(image.getFilePath());
-        try (FileOutputStream fos = new FileOutputStream(localFile)) {
-            fos.write(file.getBytes());
-        }
-
-        return imageRepository.save(image);
     }
 
     // Delete image by ID
     public void deleteImage(Long id) {
-        Optional<Image> imageOptional = imageRepository.findById(id);
-
-        if (!imageOptional.isPresent()) {
-            throw new ImageNotFoundException("Image with ID " + id + " not found");
+        if (imageRepository.existsById(id)) {
+            imageRepository.deleteById(id);
+        } else {
+            throw new ImageNotFoundException("Image not found with id " + id);
         }
-
-        Image image = imageOptional.get();
-        File localFile = new File(image.getFilePath());
-        if (localFile.exists()) {
-            localFile.delete();
-        }
-        imageRepository.deleteById(id);
     }
 }

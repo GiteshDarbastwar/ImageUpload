@@ -1,10 +1,6 @@
 package com.gtasterix.ImageUpload.model;
 
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 @Entity
 public class Image {
@@ -13,19 +9,15 @@ public class Image {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String filename;
-    private String url; // This will be the URL to access the image
-    private String filePath; // Local path to the image file
+    private String name;
 
-    public Image() {}
+    private String url;  // This will store the URL to view the image
 
-    public Image(String filename, String url, String filePath) {
-        this.filename = filename;
-        this.url = url;
-        this.filePath = filePath;
-    }
+    @Lob
+    @Column(columnDefinition = "LONGBLOB")
+    private byte[] image;  // Store the image as binary data
 
-    // Getters and Setters
+    // Getters and setters
     public Long getId() {
         return id;
     }
@@ -34,12 +26,12 @@ public class Image {
         this.id = id;
     }
 
-    public String getFilename() {
-        return filename;
+    public String getName() {
+        return name;
     }
 
-    public void setFilename(String filename) {
-        this.filename = filename;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getUrl() {
@@ -50,11 +42,11 @@ public class Image {
         this.url = url;
     }
 
-    public String getFilePath() {
-        return filePath;
+    public byte[] getImage() {
+        return image;
     }
 
-    public void setFilePath(String filePath) {
-        this.filePath = filePath;
+    public void setImage(byte[] image) {
+        this.image = image;
     }
 }

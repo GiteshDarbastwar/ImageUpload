@@ -13,8 +13,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,7 +29,7 @@ public class ImageController {
     @PostMapping("/upload/limited")
     public ResponseEntity<Image> uploadImageWithLimit(@RequestParam("file") MultipartFile file) {
         try {
-            String fileDownloadUri = "/images/" + file.getOriginalFilename();
+            String fileDownloadUri = "/api/images/view/filename/" + file.getOriginalFilename();
             Image savedImage = imageStorageService.uploadImageWithSizeLimit(file, fileDownloadUri, MAX_FILE_SIZE);
             return ResponseEntity.created(URI.create(fileDownloadUri)).body(savedImage);
         } catch (IOException e) {
@@ -45,7 +43,7 @@ public class ImageController {
     @PostMapping("/upload/unlimited")
     public ResponseEntity<Image> uploadImageWithoutLimit(@RequestParam("file") MultipartFile file) {
         try {
-            String fileDownloadUri = "/images/" + file.getOriginalFilename();
+            String fileDownloadUri = "/api/images/view/filename/" + file.getOriginalFilename();
             Image savedImage = imageStorageService.uploadImageWithoutSizeLimit(file, fileDownloadUri);
             return ResponseEntity.created(URI.create(fileDownloadUri)).body(savedImage);
         } catch (IOException e) {
@@ -54,21 +52,30 @@ public class ImageController {
     }
 
     // View image by ID
-    @GetMapping("/view/{id}")
-    public ResponseEntity<byte[]> viewImage(@PathVariable Long id) {
+    @GetMapping("/view/id/{id}")
+    public ResponseEntity<byte[]> viewImageById(@PathVariable Long id) {
         Optional<Image> imageOptional = imageStorageService.getImage(id);
 
         if (imageOptional.isPresent()) {
             Image image = imageOptional.get();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, "image/jpeg"); // Adjust based on image type
+            return new ResponseEntity<>(image.getImage(), headers, HttpStatus.OK);  // return the image data
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
 
-            try {
-                byte[] imageBytes = Files.readAllBytes(Paths.get(image.getFilePath()));
-                HttpHeaders headers = new HttpHeaders();
-                headers.set(HttpHeaders.CONTENT_TYPE, "image/jpeg"); // Adjust depending on the image type
-                return new ResponseEntity<>(imageBytes, headers, HttpStatus.OK);
-            } catch (IOException e) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-            }
+    // View image by filename
+    @GetMapping("/view/filename/{filename}")
+    public ResponseEntity<byte[]> viewImageByFilename(@PathVariable String filename) {
+        Optional<Image> imageOptional = imageStorageService.getImageByName(filename);
+
+        if (imageOptional.isPresent()) {
+            Image image = imageOptional.get();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, "image/jpeg"); // Adjust based on image type
+            return new ResponseEntity<>(image.getImage(), headers, HttpStatus.OK);  // return the image data
         } else {
             return ResponseEntity.notFound().build();
         }
